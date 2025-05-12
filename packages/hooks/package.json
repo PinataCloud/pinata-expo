@@ -1,0 +1,48 @@
+{
+	"name": "pinata-expo-hooks",
+	"version": "0.0.1",
+	"description": "React Native/Expo hooks for Pinata TUS uploads",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc"
+	},
+	"module": "index.ts",
+	"type": "module",
+	"keywords": [
+		"pinata",
+		"ipfs",
+		"tus",
+		"upload",
+		"react-native",
+		"expo",
+		"hooks"
+	],
+	"author": "Steve Simkins",
+	"license": "MIT",
+	"dependencies": {
+		"Base64": "^1.3.0",
+		"expo-file-system": "^15.2.2",
+		"tsup": "^8.4.0"
+	},
+	"devDependencies": {
+		"@types/react": "^19.0.0",
+		"@types/react-native": "^0.70.0",
+		"typescript": "^4.9.5"
+	},
+	"peerDependencies": {
+		"expo": ">=45.0.0",
+		"react": ">=16.8.0",
+		"react-native": ">=0.60.0",
+		"typescript": "^5"
+	}
+}

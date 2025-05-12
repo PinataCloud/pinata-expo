@@ -1,0 +1,9 @@
+{
+	"name": "pinata-expo",
+	"version": "0.0.1",
+	"description": "A collection of tools for using Pinata with Expo",
+	"keywords": [],
+	"author": "Steve Simkins",
+	"license": "MIT",
+	"packageManager": "pnpm@10.10.0"
+}
