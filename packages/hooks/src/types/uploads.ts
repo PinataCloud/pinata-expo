@@ -6,6 +6,7 @@ export type UploadOptions = {
 	keyvalues?: Record<string, string>;
 	groupId?: string;
 	url?: string;
+	streamable?: boolean;
 };
 
 export type UploadResponse = {

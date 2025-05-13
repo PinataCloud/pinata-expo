@@ -2,9 +2,12 @@ import { Image } from "expo-image";
 import { View, Text, Button, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { useUpload } from "pinata-expo-hooks";
+
+//const SERVER_URL = "https://expo-server.pinata-marketing-enterprise.workers.dev";
+const SERVER_URL = "http://localhost:8787";
 
 export default function HomeScreen() {
 	const {
@@ -19,6 +22,25 @@ export default function HomeScreen() {
 	} = useUpload();
 	const [fileUri, setFileUri] = useState<string | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
+	const [fileData, setFileData] = useState<any>(null);
+
+	// Add useEffect to fetch file info after successful upload
+	useEffect(() => {
+		const fetchFileInfo = async () => {
+			if (uploadResponse) {
+				try {
+					const fileRes = await fetch(`${SERVER_URL}/file/${uploadResponse}`);
+					const data = await fileRes.json();
+					setFileData(data);
+					console.log("File info fetched:", data);
+				} catch (err) {
+					console.error("Failed to fetch file info:", err);
+				}
+			}
+		};
+
+		fetchFileInfo();
+	}, [uploadResponse]);
 
 	const pickImage = async () => {
 		const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -61,7 +83,10 @@ export default function HomeScreen() {
 			return;
 		}
 		try {
-			const urlRes = await fetch("http://localhost:8787/presigned_url");
+			const urlRes = await fetch(`${SERVER_URL}/presigned_url`);
+			if (!urlRes.ok) {
+				console.log(urlRes.status);
+			}
 			const urlData = await urlRes.json();
 			await upload(
 				fileUri,
@@ -73,8 +98,10 @@ export default function HomeScreen() {
 						app: "Pinata Expo Demo",
 						timestamp: Date.now().toString(),
 					},
+					streamable: true,
 				},
 			);
+			// File info fetching is now handled by useEffect
 		} catch (err) {
 			console.error("Failed to start upload:", err);
 			alert("Failed to start upload");
@@ -150,6 +177,11 @@ export default function HomeScreen() {
 					<View style={styles.successContainer}>
 						<Text style={styles.successTitle}>Upload Complete!</Text>
 						<Text style={styles.successText}>File ID: {uploadResponse}</Text>
+						{fileData && (
+							<Text style={styles.successText}>
+								File Info: {JSON.stringify(fileData, null, 2)}
+							</Text>
+						)}
 					</View>
 				)}
 			</View>

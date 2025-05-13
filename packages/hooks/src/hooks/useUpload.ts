@@ -270,6 +270,10 @@ export const useUpload = (): UseUploadReturn => {
 					metadata += `,keyvalues ${Base64.btoa(JSON.stringify(options.keyvalues))}`;
 				}
 
+				if (options?.streamable) {
+					metadata += `,streamable ${Base64.btoa("true")}`;
+				}
+
 				// Initialize upload with TUS
 				const urlReq = await fetch(url, {
 					method: "POST",
