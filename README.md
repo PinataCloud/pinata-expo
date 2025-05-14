@@ -5,37 +5,6 @@ This repo contains packages that are compatible with React Native and Expo for u
 >[!WARNING]
 >This package is still under development, please [contact us](mailto:team@pinata.cloud) if you have any issues!
 
-## Usage
-
-Install the available `pinata-expo-hooks` package with your package manage of choice
-
-```bash
-pnpm install pinata-expo-hooks
-```
-
-Inside your app import the `useUpload` hook
-
-```typescript
-import { useUpload } from "pinata-expo-hooks";
-```
-
-Then use it inside the app
-
-```typescript
-	const {
-		upload, // Method to upload a file using a presigned URL
-		progress, // Progress state as integer
-		loading, // Boolean uploading state
-		uploadResponse, // File ID used to fetch the file info server side
-		error, // Error state
-		pause, // Pause upload method
-		resume, // Resume upload method
-		cancel, // Cancel current upload method
-	} = useUpload();
-```
-
-In order to upload you will need to have a server that provides a [presigned URL](https://docs.pinata.cloud/files/presigned-urls). An example of that server can be found inside this repo under `examples/expo-server`. An example of a client uploading files can be found in `examples/expo-app`.
-
 ## Development
 
 The `pinata-expo` monorepo uses `pnpm` to manage workspaces and building packages. The structure is as follows:
