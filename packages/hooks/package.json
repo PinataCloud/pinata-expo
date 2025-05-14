@@ -1,6 +1,6 @@
 {
 	"name": "pinata-expo-hooks",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "React Native/Expo hooks for Pinata TUS uploads",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
