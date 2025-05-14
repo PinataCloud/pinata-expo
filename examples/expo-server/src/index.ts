@@ -30,7 +30,7 @@ app.get("/presigned_url", async (c) => {
 	});
 
 	const url = await pinata.upload.public.createSignedURL({
-		expires: 500, // Last for 60 seconds
+		expires: 3600,
 		streamable: true,
 	});
 
