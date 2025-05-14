@@ -5,6 +5,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { useState } from "react";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { useUpload } from "pinata-expo-hooks";
+import { Link } from "expo-router";
 
 const SERVER_URL = "http://localhost:8787";
 
@@ -13,7 +14,7 @@ export default function HomeScreen() {
 		upload, // Method to upload a file using a presigned URL
 		progress, // Progress state as integer
 		loading, // Boolean uploading state
-		uploadResponse, // File ID used to fetch the file info server side
+		uploadResponse, // CID for the uploaded file
 		error, // Error state
 		pause, // Pause upload method
 		resume, // Resume upload method
@@ -80,7 +81,6 @@ export default function HomeScreen() {
 					},
 				},
 			);
-			// File info fetching is now handled by useEffect
 		} catch (err) {
 			console.error("Failed to start upload:", err);
 			alert("Failed to start upload");
@@ -156,6 +156,9 @@ export default function HomeScreen() {
 					<View style={styles.successContainer}>
 						<Text style={styles.successTitle}>Upload Complete!</Text>
 						<Text style={styles.successText}>File CID: {uploadResponse}</Text>
+						<Link href={`https://gateway.pinata.cloud/ipfs/${uploadResponse}`}>
+							View File
+						</Link>
 					</View>
 				)}
 			</View>
