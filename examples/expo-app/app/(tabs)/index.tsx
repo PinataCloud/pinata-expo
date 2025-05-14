@@ -2,45 +2,25 @@ import { Image } from "expo-image";
 import { View, Text, Button, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { useUpload } from "pinata-expo-hooks";
 
-//const SERVER_URL = "https://expo-server.pinata-marketing-enterprise.workers.dev";
 const SERVER_URL = "http://localhost:8787";
 
 export default function HomeScreen() {
 	const {
-		upload,
-		progress,
-		loading,
-		uploadResponse,
-		error,
-		pause,
-		resume,
-		cancel,
+		upload, // Method to upload a file using a presigned URL
+		progress, // Progress state as integer
+		loading, // Boolean uploading state
+		uploadResponse, // File ID used to fetch the file info server side
+		error, // Error state
+		pause, // Pause upload method
+		resume, // Resume upload method
+		cancel, // Cancel current upload method
 	} = useUpload();
 	const [fileUri, setFileUri] = useState<string | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
-	const [fileData, setFileData] = useState<any>(null);
-
-	// Add useEffect to fetch file info after successful upload
-	useEffect(() => {
-		const fetchFileInfo = async () => {
-			if (uploadResponse) {
-				try {
-					const fileRes = await fetch(`${SERVER_URL}/file/${uploadResponse}`);
-					const data = await fileRes.json();
-					setFileData(data);
-					console.log("File info fetched:", data);
-				} catch (err) {
-					console.error("Failed to fetch file info:", err);
-				}
-			}
-		};
-
-		fetchFileInfo();
-	}, [uploadResponse]);
 
 	const pickImage = async () => {
 		const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -98,7 +78,6 @@ export default function HomeScreen() {
 						app: "Pinata Expo Demo",
 						timestamp: Date.now().toString(),
 					},
-					streamable: true,
 				},
 			);
 			// File info fetching is now handled by useEffect
@@ -176,12 +155,7 @@ export default function HomeScreen() {
 				{uploadResponse && (
 					<View style={styles.successContainer}>
 						<Text style={styles.successTitle}>Upload Complete!</Text>
-						<Text style={styles.successText}>File ID: {uploadResponse}</Text>
-						{fileData && (
-							<Text style={styles.successText}>
-								File Info: {JSON.stringify(fileData, null, 2)}
-							</Text>
-						)}
+						<Text style={styles.successText}>File CID: {uploadResponse}</Text>
 					</View>
 				)}
 			</View>
