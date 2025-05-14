@@ -1,5 +1,4 @@
 export type UploadOptions = {
-	uploadUrl?: string;
 	customHeaders?: Record<string, string>;
 	name?: string;
 	keyvalues?: Record<string, string>;
