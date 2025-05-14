@@ -1,12 +1,9 @@
 export type UploadOptions = {
-	pinataJwt?: string;
 	uploadUrl?: string;
 	customHeaders?: Record<string, string>;
 	name?: string;
 	keyvalues?: Record<string, string>;
 	groupId?: string;
-	url?: string;
-	streamable?: boolean;
 };
 
 export type UploadResponse = {

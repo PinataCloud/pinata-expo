@@ -1,26 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { getFileIdFromUrl } from "../utils";
 import * as FileSystem from "expo-file-system";
-import type { UploadOptions, UseUploadReturn } from "../types";
-import { NetworkError, AuthenticationError, ValidationError } from "../types";
+import {
+	NetworkError,
+	AuthenticationError,
+	ValidationError,
+	type UploadOptions,
+	type UseUploadReturn,
+} from "../types";
 //@ts-ignore
 import Base64 from "Base64";
-
-// Helper function to get file ID from URL
-const getFileIdFromUrl = (url: string): string => {
-	// Look for a UUID pattern in the URL
-	const uuidPattern =
-		/([A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12})/i;
-	const match = url.match(uuidPattern);
-
-	if (match?.[1]) {
-		return match[1];
-	}
-
-	// Fallback to the old method if no UUID is found
-	const parts = url.split("/");
-	const lastPart = parts[parts.length - 1] as string;
-	return lastPart.split(".")[0] as string;
-};
 
 export const useUpload = (): UseUploadReturn => {
 	const [progress, setProgress] = useState<number>(0);
@@ -42,6 +31,7 @@ export const useUpload = (): UseUploadReturn => {
 	const optionsRef = useRef<UploadOptions | null>(null);
 	const networkRef = useRef<"public" | "private">("public");
 	const headerRef = useRef<Record<string, string>>({});
+	const lastResponseHeadersRef = useRef<Headers | null>(null);
 
 	// Reset state for new upload
 	const resetState = useCallback(() => {
@@ -128,6 +118,8 @@ export const useUpload = (): UseUploadReturn => {
 				body: bytes,
 			});
 
+			lastResponseHeadersRef.current = uploadReq.headers;
+
 			if (!uploadReq.ok) {
 				const errorData = await uploadReq.text();
 				throw new NetworkError(
@@ -167,8 +159,19 @@ export const useUpload = (): UseUploadReturn => {
 			return;
 		}
 		try {
-			const fileId = getFileIdFromUrl(uploadUrlRef.current);
-			setUploadResponse(fileId);
+			let cid: string | null = "";
+
+			// Try to get the CID from the headers of the last response
+			if (lastResponseHeadersRef.current) {
+				const uploadCid = lastResponseHeadersRef.current.get("upload-cid");
+				if (uploadCid) {
+					cid = uploadCid;
+				} else {
+					cid = null;
+				}
+			}
+
+			setUploadResponse(cid);
 			setProgress(100);
 			setLoading(false);
 		} catch (err) {
@@ -213,6 +216,7 @@ export const useUpload = (): UseUploadReturn => {
 					json: "application/json",
 					txt: "text/plain",
 					mp4: "video/mp4",
+					mov: "video/mov",
 					mp3: "audio/mpeg",
 				};
 
@@ -236,11 +240,6 @@ export const useUpload = (): UseUploadReturn => {
 					fileType,
 					fileName,
 				};
-
-				let endpoint = "https://uploads.pinata.cloud/v3";
-				if (options?.uploadUrl) {
-					endpoint = options?.uploadUrl;
-				}
 
 				// Set headers
 				let headers: Record<string, string>;
@@ -268,10 +267,6 @@ export const useUpload = (): UseUploadReturn => {
 
 				if (options?.keyvalues) {
 					metadata += `,keyvalues ${Base64.btoa(JSON.stringify(options.keyvalues))}`;
-				}
-
-				if (options?.streamable) {
-					metadata += `,streamable ${Base64.btoa("true")}`;
 				}
 
 				// Initialize upload with TUS
