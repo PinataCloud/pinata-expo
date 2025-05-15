@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { getFileIdFromUrl } from "../utils";
 import * as FileSystem from "expo-file-system";
 import {
 	NetworkError,
