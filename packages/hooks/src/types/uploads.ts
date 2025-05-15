@@ -3,6 +3,7 @@ export type UploadOptions = {
 	name?: string;
 	keyvalues?: Record<string, string>;
 	groupId?: string;
+	chunkSize?: number;
 };
 
 export type UploadResponse = {

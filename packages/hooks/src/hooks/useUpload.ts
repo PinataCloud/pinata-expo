@@ -32,6 +32,7 @@ export const useUpload = (): UseUploadReturn => {
 	const networkRef = useRef<"public" | "private">("public");
 	const headerRef = useRef<Record<string, string>>({});
 	const lastResponseHeadersRef = useRef<Headers | null>(null);
+	const chunkSizeRef = useRef<number>(262144 * 20 * 10); // Default: ~52.4MB
 
 	// Reset state for new upload
 	const resetState = useCallback(() => {
@@ -81,7 +82,7 @@ export const useUpload = (): UseUploadReturn => {
 			}
 
 			const { fileUri, fileSize } = fileInfoRef.current;
-			const chunkSize = 5 * 1024 * 1024; // 5MB chunk size for mobile
+			const chunkSize = chunkSizeRef.current;
 			const offset = uploadOffsetRef.current;
 
 			if (offset >= fileSize) {
@@ -199,6 +200,12 @@ export const useUpload = (): UseUploadReturn => {
 				// Store references for pause/resume functionality
 				optionsRef.current = options || null;
 				networkRef.current = network;
+
+				if (options?.chunkSize && options.chunkSize > 0) {
+					chunkSizeRef.current = options.chunkSize;
+				} else {
+					chunkSizeRef.current = 262144 * 20 * 10; // Reset to default if not specified
+				}
 
 				// Get file info from Expo FileSystem
 				const fileInfo = await FileSystem.getInfoAsync(fileUri);
