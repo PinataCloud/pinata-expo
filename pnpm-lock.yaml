@@ -120,8 +120,8 @@ importers:
         specifier: ^4.7.9
         version: 4.7.9
       pinata:
-        specifier: ^2.2.2
-        version: 2.2.2
+        specifier: ^2.3.0
+        version: 2.3.0
     devDependencies:
       wrangler:
         specifier: ^4.4.0
@@ -3713,8 +3713,8 @@ packages:
     resolution: {integrity: sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==}
     engines: {node: '>=12'}
 
-  pinata@2.2.2:
-    resolution: {integrity: sha512-xIPWyN7xFU/YBBqXlPoMaAQYBNKlP6Zuq0HZ75KituByHzeCqxMdF87YXcZpADxyGcYRQ5JEJn1IBzX909erow==}
+  pinata@2.3.0:
+    resolution: {integrity: sha512-WMS5Y5UsocoplZiMdpHP3WQ97BzM3GtM2BKr4kLYJz0ug/5sAZkLxDOoC9SSGpiGjacUwA0BU43nquIJ70YwZw==}
     engines: {node: '>=20'}
 
   pirates@4.0.7:
@@ -8903,7 +8903,7 @@ snapshots:
 
   picomatch@4.0.2: {}
 
-  pinata@2.2.2: {}
+  pinata@2.3.0: {}
 
   pirates@4.0.7: {}
 
