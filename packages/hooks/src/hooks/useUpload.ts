@@ -10,6 +10,14 @@ import {
 //@ts-ignore
 import Base64 from "Base64";
 
+const BASE_CHUNK_SIZE = 262144; // 256KB
+const DEFAULT_CHUNKS = 20 * 10; // 200 chunks
+
+const normalizeChunkSize = (size: number): number => {
+	// Round up to the nearest multiple of BASE_CHUNK_SIZE
+	return Math.ceil(size / BASE_CHUNK_SIZE) * BASE_CHUNK_SIZE;
+};
+
 export const useUpload = (): UseUploadReturn => {
 	const [progress, setProgress] = useState<number>(0);
 	const [loading, setLoading] = useState<boolean>(false);
@@ -31,7 +39,7 @@ export const useUpload = (): UseUploadReturn => {
 	const networkRef = useRef<"public" | "private">("public");
 	const headerRef = useRef<Record<string, string>>({});
 	const lastResponseHeadersRef = useRef<Headers | null>(null);
-	const chunkSizeRef = useRef<number>(262144 * 20 * 10); // Default: ~52.4MB
+	const chunkSizeRef = useRef<number>(BASE_CHUNK_SIZE * DEFAULT_CHUNKS); // Default: ~52.4MB
 
 	// Reset state for new upload
 	const resetState = useCallback(() => {
@@ -201,9 +209,9 @@ export const useUpload = (): UseUploadReturn => {
 				networkRef.current = network;
 
 				if (options?.chunkSize && options.chunkSize > 0) {
-					chunkSizeRef.current = options.chunkSize;
+					chunkSizeRef.current = normalizeChunkSize(options.chunkSize);
 				} else {
-					chunkSizeRef.current = 262144 * 20 * 10; // Reset to default if not specified
+					chunkSizeRef.current = BASE_CHUNK_SIZE * DEFAULT_CHUNKS;
 				}
 
 				// Get file info from Expo FileSystem
