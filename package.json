@@ -1,6 +1,6 @@
 {
 	"name": "pinata-expo",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "A collection of tools for using Pinata with Expo",
 	"keywords": [],
 	"author": "Steve Simkins",
