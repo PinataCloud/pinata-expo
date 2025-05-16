@@ -14,8 +14,10 @@ const BASE_CHUNK_SIZE = 262144; // 256KB
 const DEFAULT_CHUNKS = 20 * 10; // 200 chunks
 
 const normalizeChunkSize = (size: number): number => {
-	// Round up to the nearest multiple of BASE_CHUNK_SIZE
-	return Math.ceil(size / BASE_CHUNK_SIZE) * BASE_CHUNK_SIZE;
+	if (size < BASE_CHUNK_SIZE) {
+		return BASE_CHUNK_SIZE;
+	}
+	return Math.floor(size / BASE_CHUNK_SIZE) * BASE_CHUNK_SIZE;
 };
 
 export const useUpload = (): UseUploadReturn => {
