@@ -24,6 +24,7 @@ export type UseUploadReturn = {
 	pause: () => void;
 	resume: () => void;
 	cancel: () => void;
+	resetState: () => void;
 };
 
 export class PinataError extends Error {

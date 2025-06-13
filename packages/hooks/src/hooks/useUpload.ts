@@ -345,5 +345,6 @@ export const useUpload = (): UseUploadReturn => {
 		pause,
 		resume,
 		cancel,
+		resetState,
 	};
 };
