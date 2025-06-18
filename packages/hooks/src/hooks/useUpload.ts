@@ -4,7 +4,7 @@ import {
 	NetworkError,
 	AuthenticationError,
 	ValidationError,
-	type UploadOptions,
+	type ExtendedUploadOptions,
 	type UseUploadReturn,
 } from "../types";
 //@ts-ignore
@@ -24,12 +24,14 @@ export const useUpload = (): UseUploadReturn => {
 	const cancelledRef = useRef<boolean>(false);
 	const uploadOffsetRef = useRef<number>(0);
 	const fileInfoRef = useRef<{
-		fileUri: string;
+		fileUri?: string;
+		base64Data?: string;
 		fileSize: number;
 		fileType: string;
 		fileName: string;
+		isBase64: boolean;
 	} | null>(null);
-	const optionsRef = useRef<UploadOptions | null>(null);
+	const optionsRef = useRef<ExtendedUploadOptions | null>(null);
 	const networkRef = useRef<"public" | "private">("public");
 	const headerRef = useRef<Record<string, string>>({});
 	const lastResponseHeadersRef = useRef<Headers | null>(null);
@@ -66,6 +68,22 @@ export const useUpload = (): UseUploadReturn => {
 		setLoading(false);
 	}, []);
 
+	// Helper function to get MIME type from base64 data URL
+	const getMimeTypeFromDataUrl = (base64String: string): string => {
+		if (base64String.startsWith("data:")) {
+			const mimeMatch = base64String.match(/data:([^;]+)/);
+			return mimeMatch ? (mimeMatch[1] as string) : "application/octet-stream";
+		}
+		return "application/octet-stream";
+	};
+
+	// Helper function to strip data URL prefix
+	const stripDataUrlPrefix = (base64String: string): string => {
+		return base64String.includes(",")
+			? (base64String.split(",")[1] as string)
+			: base64String;
+	};
+
 	// Continue upload from current offset
 	const continueUpload = useCallback(async () => {
 		if (!uploadUrlRef.current || !fileInfoRef.current) {
@@ -82,7 +100,7 @@ export const useUpload = (): UseUploadReturn => {
 				return;
 			}
 
-			const { fileUri, fileSize } = fileInfoRef.current;
+			const { fileUri, base64Data, fileSize, isBase64 } = fileInfoRef.current;
 			const chunkSize = chunkSizeRef.current;
 			const offset = uploadOffsetRef.current;
 
@@ -95,12 +113,23 @@ export const useUpload = (): UseUploadReturn => {
 			const endOffset = Math.min(offset + chunkSize, fileSize);
 			const chunkLength = endOffset - offset;
 
-			// Read chunk from file
-			const chunk = await FileSystem.readAsStringAsync(fileUri, {
-				encoding: FileSystem.EncodingType.Base64,
-				position: offset,
-				length: chunkLength,
-			});
+			let chunk: string;
+
+			if (isBase64 && base64Data) {
+				// For base64 data, we can directly slice the string
+				// Note: This assumes the entire file is under chunk size
+				// For larger base64 files, you'd need more complex chunking logic
+				chunk = base64Data;
+			} else if (fileUri) {
+				// Read chunk from file (existing logic)
+				chunk = await FileSystem.readAsStringAsync(fileUri, {
+					encoding: FileSystem.EncodingType.Base64,
+					position: offset,
+					length: chunkLength,
+				});
+			} else {
+				throw new Error("No file URI or base64 data available");
+			}
 
 			// Convert base64 to binary for upload
 			const binaryString = Base64.atob(chunk);
@@ -143,8 +172,13 @@ export const useUpload = (): UseUploadReturn => {
 			const newProgress = Math.min((newOffset / fileSize) * 100, 99.9);
 			setProgress(newProgress);
 
-			// Continue with next chunk
-			continueUpload();
+			// For base64 uploads under chunk size, we're done after one iteration
+			if (isBase64 && newOffset >= fileSize) {
+				await finalizeUpload();
+			} else {
+				// Continue with next chunk for file uploads
+				continueUpload();
+			}
 		} catch (err) {
 			if (err instanceof Error) {
 				setError(err);
@@ -186,13 +220,13 @@ export const useUpload = (): UseUploadReturn => {
 		}
 	}, []);
 
-	// Main upload function
+	// Main upload function for file URIs (existing functionality)
 	const upload = useCallback(
 		async (
 			fileUri: string,
 			network: "public" | "private",
 			url: string,
-			options?: UploadOptions,
+			options?: ExtendedUploadOptions,
 		) => {
 			try {
 				resetState();
@@ -247,76 +281,10 @@ export const useUpload = (): UseUploadReturn => {
 					fileSize: fileInfo.size,
 					fileType,
 					fileName,
+					isBase64: false,
 				};
 
-				// Set headers
-				let headers: Record<string, string>;
-				if (
-					options?.customHeaders &&
-					Object.keys(options?.customHeaders).length > 0
-				) {
-					headers = {
-						...options.customHeaders,
-					};
-				} else {
-					headers = {
-						Source: "sdk/expo",
-					};
-				}
-
-				headerRef.current = headers;
-
-				// Prepare metadata for TUS upload
-				let metadata = `filename ${Base64.btoa(fileName)},filetype ${Base64.btoa(fileType)},network ${Base64.btoa(network)}`;
-
-				if (options?.groupId) {
-					metadata += `,group_id ${Base64.btoa(options.groupId)}`;
-				}
-
-				if (options?.keyvalues) {
-					metadata += `,keyvalues ${Base64.btoa(JSON.stringify(options.keyvalues))}`;
-				}
-
-				// Initialize upload with TUS
-				const urlReq = await fetch(url, {
-					method: "POST",
-					headers: {
-						"Upload-Length": `${fileInfo.size}`,
-						"Upload-Metadata": metadata,
-						...headers,
-					},
-				});
-
-				if (!urlReq.ok) {
-					const errorData = await urlReq.text();
-					if (urlReq.status === 401 || urlReq.status === 403) {
-						throw new AuthenticationError(
-							`Authentication failed: ${errorData}`,
-							urlReq.status,
-							{
-								error: errorData,
-								code: "AUTH_ERROR",
-							},
-						);
-					}
-					throw new NetworkError("Error initializing upload", urlReq.status, {
-						error: errorData,
-						code: "HTTP_ERROR",
-					});
-				}
-
-				const uploadUrl = urlReq.headers.get("Location");
-				if (!uploadUrl) {
-					throw new NetworkError("Upload URL not provided", urlReq.status, {
-						error: "No location header found",
-						code: "HTTP_ERROR",
-					});
-				}
-
-				uploadUrlRef.current = uploadUrl;
-
-				// Start the upload process
-				continueUpload();
+				await initializeAndStartUpload(network, url, options);
 			} catch (err) {
 				if (err instanceof Error) {
 					setError(err);
@@ -326,7 +294,156 @@ export const useUpload = (): UseUploadReturn => {
 				setLoading(false);
 			}
 		},
-		[resetState, continueUpload],
+		[resetState],
+	);
+
+	// New upload function for base64 strings
+	const uploadBase64 = useCallback(
+		async (
+			base64String: string,
+			network: "public" | "private",
+			url: string,
+			options?: ExtendedUploadOptions,
+		) => {
+			try {
+				resetState();
+				setLoading(true);
+
+				// Store references
+				optionsRef.current = options || null;
+				networkRef.current = network;
+
+				// For base64, we typically don't need chunking, but respect the option
+				if (options?.chunkSize && options.chunkSize > 0) {
+					chunkSizeRef.current = options.chunkSize;
+				} else {
+					chunkSizeRef.current = BASE_CHUNK_SIZE;
+				}
+
+				// Clean base64 string and get metadata
+				const cleanBase64 = stripDataUrlPrefix(base64String);
+				const fileType =
+					options?.fileType || getMimeTypeFromDataUrl(base64String);
+				const fileName = options?.fileName || options?.name || "base64-file";
+
+				// Calculate file size from base64 string
+				// Base64 encoding increases size by ~33%, so we need to account for padding
+				const padding = (cleanBase64.match(/=/g) || []).length;
+				const fileSize = (cleanBase64.length * 3) / 4 - padding;
+
+				// Check if file is under chunk size
+				if (fileSize > chunkSizeRef.current) {
+					throw new ValidationError(
+						`Base64 file size (${fileSize} bytes) exceeds chunk size. Use regular upload for larger files.`,
+					);
+				}
+
+				fileInfoRef.current = {
+					base64Data: cleanBase64,
+					fileSize,
+					fileType,
+					fileName,
+					isBase64: true,
+				};
+
+				await initializeAndStartUpload(network, url, options);
+			} catch (err) {
+				if (err instanceof Error) {
+					setError(err);
+				} else {
+					setError(
+						new Error("Unknown error during base64 upload initialization"),
+					);
+				}
+				setLoading(false);
+			}
+		},
+		[resetState],
+	);
+
+	// Shared initialization logic
+	const initializeAndStartUpload = useCallback(
+		async (
+			network: "public" | "private",
+			url: string,
+			options?: ExtendedUploadOptions,
+		) => {
+			if (!fileInfoRef.current) {
+				throw new Error("No file info available");
+			}
+
+			const { fileSize, fileType, fileName } = fileInfoRef.current;
+
+			// Set headers
+			let headers: Record<string, string>;
+			if (
+				options?.customHeaders &&
+				Object.keys(options?.customHeaders).length > 0
+			) {
+				headers = {
+					...options.customHeaders,
+				};
+			} else {
+				headers = {
+					Source: "sdk/expo",
+				};
+			}
+
+			headerRef.current = headers;
+
+			// Prepare metadata for TUS upload
+			let metadata = `filename ${Base64.btoa(fileName)},filetype ${Base64.btoa(fileType)},network ${Base64.btoa(network)}`;
+
+			if (options?.groupId) {
+				metadata += `,group_id ${Base64.btoa(options.groupId)}`;
+			}
+
+			if (options?.keyvalues) {
+				metadata += `,keyvalues ${Base64.btoa(JSON.stringify(options.keyvalues))}`;
+			}
+
+			// Initialize upload with TUS
+			const urlReq = await fetch(url, {
+				method: "POST",
+				headers: {
+					"Upload-Length": `${fileSize}`,
+					"Upload-Metadata": metadata,
+					...headers,
+				},
+			});
+
+			if (!urlReq.ok) {
+				const errorData = await urlReq.text();
+				if (urlReq.status === 401 || urlReq.status === 403) {
+					throw new AuthenticationError(
+						`Authentication failed: ${errorData}`,
+						urlReq.status,
+						{
+							error: errorData,
+							code: "AUTH_ERROR",
+						},
+					);
+				}
+				throw new NetworkError("Error initializing upload", urlReq.status, {
+					error: errorData,
+					code: "HTTP_ERROR",
+				});
+			}
+
+			const uploadUrl = urlReq.headers.get("Location");
+			if (!uploadUrl) {
+				throw new NetworkError("Upload URL not provided", urlReq.status, {
+					error: "No location header found",
+					code: "HTTP_ERROR",
+				});
+			}
+
+			uploadUrlRef.current = uploadUrl;
+
+			// Start the upload process
+			continueUpload();
+		},
+		[continueUpload],
 	);
 
 	// Cleanup on unmount
@@ -342,6 +459,7 @@ export const useUpload = (): UseUploadReturn => {
 		error,
 		uploadResponse,
 		upload,
+		uploadBase64,
 		pause,
 		resume,
 		cancel,

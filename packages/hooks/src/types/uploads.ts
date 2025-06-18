@@ -6,6 +6,11 @@ export type UploadOptions = {
 	chunkSize?: number;
 };
 
+export interface ExtendedUploadOptions extends UploadOptions {
+	fileName?: string;
+	fileType?: string;
+}
+
 export type UploadResponse = {
 	id: string;
 };
@@ -20,6 +25,15 @@ export type UseUploadReturn = {
 		network: "public" | "private",
 		url: string,
 		options?: UploadOptions,
+	) => Promise<void>;
+	uploadBase64: (
+		base64String: string,
+		network: "public" | "private",
+		url: string,
+		options?: UploadOptions & {
+			fileName?: string;
+			fileType?: string;
+		},
 	) => Promise<void>;
 	pause: () => void;
 	resume: () => void;
