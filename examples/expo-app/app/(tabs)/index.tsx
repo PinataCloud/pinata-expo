@@ -19,6 +19,7 @@ export default function HomeScreen() {
 		pause, // Pause upload method
 		resume, // Resume upload method
 		cancel, // Cancel current upload method
+		uploadBase64, // Upload base64 string
 	} = useUpload();
 	const [fileUri, setFileUri] = useState<string | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
@@ -87,6 +88,27 @@ export default function HomeScreen() {
 		}
 	};
 
+	const startBase64Upload = async () => {
+		try {
+			const urlRes = await fetch(`${SERVER_URL}/presigned_url`);
+			if (!urlRes.ok) {
+				console.log(urlRes.status);
+			}
+			const urlData = await urlRes.json();
+			await uploadBase64(
+				`data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAADMElEQVR4nOzVwQnAIBQFQYXff81RUkQCOyDj1YOPnbXWPmeTRef+/3O/OyBjzh3CD95BfqICMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMK0CMO0TAAD//2Anhf4QtqobAAAAAElFTkSuQmCC`,
+				"public", // or 'private' if you want a private upload
+				urlData.url,
+				{
+					fileName: "image.png",
+				},
+			);
+		} catch (err) {
+			console.error("Failed to start upload:", err);
+			alert("Failed to start upload");
+		}
+	};
+
 	// Progress bar component
 	const ProgressBar = ({ value }: { value: number }) => {
 		return (
@@ -125,6 +147,12 @@ export default function HomeScreen() {
 						/>
 					</View>
 				)}
+				<Button
+					title="Upload base64"
+					onPress={startBase64Upload}
+					disabled={loading}
+					color="#FF6AC1" // Pinata pink
+				/>
 
 				{loading && (
 					<View style={styles.uploadStatusContainer}>
