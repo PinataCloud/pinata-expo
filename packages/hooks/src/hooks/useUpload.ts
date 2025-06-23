@@ -1,5 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import * as FileSystem from "expo-file-system";
+//@ts-nocheck
+import { File } from "expo-file-system/next";
 import {
 	NetworkError,
 	AuthenticationError,
@@ -113,29 +115,26 @@ export const useUpload = (): UseUploadReturn => {
 			const endOffset = Math.min(offset + chunkSize, fileSize);
 			const chunkLength = endOffset - offset;
 
-			let chunk: string;
+			let bytes: Uint8Array;
 
 			if (isBase64 && base64Data) {
 				// For base64 data, we can directly slice the string
 				// Note: This assumes the entire file is under chunk size
 				// For larger base64 files, you'd need more complex chunking logic
-				chunk = base64Data;
+				const binaryString = Base64.atob(base64Data);
+				bytes = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					bytes[i] = binaryString.charCodeAt(i);
+				}
 			} else if (fileUri) {
-				// Read chunk from file (existing logic)
-				chunk = await FileSystem.readAsStringAsync(fileUri, {
-					encoding: FileSystem.EncodingType.Base64,
-					position: offset,
-					length: chunkLength,
-				});
+				const handle = new File(fileUri).open();
+				handle.offset = offset;
+				// Read the chunk at the current offset
+				bytes = handle.readBytes(chunkLength);
+				// Close the file handle
+				handle.close();
 			} else {
 				throw new Error("No file URI or base64 data available");
-			}
-
-			// Convert base64 to binary for upload
-			const binaryString = Base64.atob(chunk);
-			const bytes = new Uint8Array(binaryString.length);
-			for (let i = 0; i < binaryString.length; i++) {
-				bytes[i] = binaryString.charCodeAt(i);
 			}
 
 			// Upload chunk
