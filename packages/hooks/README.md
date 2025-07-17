@@ -25,13 +25,16 @@ Inside your page or component use the hook to extract methods and state
 ```typescript
 const {
 		upload, // Method to upload a file using a presigned URL
+		uploadBase64, // Method to upload base64 encoded data
 		progress, // Progress state as integer
 		loading, // Boolean uploading state
 		uploadResponse, // File ID used to fetch the file info server side
 		error, // Error state
+		retryCount, // Number of retry attempts made
 		pause, // Pause upload method
 		resume, // Resume upload method
 		cancel, // Cancel current upload method
+		resetState, // Reset upload state
 	} = useUpload();
 ```
 
@@ -43,15 +46,26 @@ export type UseUploadReturn = {
 	loading: boolean;
 	error: Error | null;
 	uploadResponse: string | null;
+	retryCount: number;
 	upload: (
 		fileUri: string,
 		network: "public" | "private",
 		url: string,
 		options?: UploadOptions,
 	) => Promise<void>;
+	uploadBase64: (
+		base64String: string,
+		network: "public" | "private",
+		url: string,
+		options?: UploadOptions & {
+			fileName?: string;
+			fileType?: string;
+		},
+	) => Promise<void>;
 	pause: () => void;
 	resume: () => void;
 	cancel: () => void;
+	resetState: () => void;
 };
 ```
 
@@ -64,10 +78,31 @@ await upload(fileUri, "public", "presigned_URL", {
 			app: "Pinata Expo Demo",
 			timestamp: Date.now().toString(),
 		},
+		retryOptions: {
+			maxRetries: 3, // Maximum number of retry attempts (default: 3)
+			initialDelay: 1000, // Initial delay in ms (default: 1000)
+			maxDelay: 30000, // Maximum delay in ms (default: 30000)
+			backoffMultiplier: 2, // Exponential backoff multiplier (default: 2)
+			retryableStatuses: [408, 429, 500, 502, 503, 504], // HTTP status codes to retry
+		},
 	});
 ```
 
 Once a file is uploaded the `uploadResponse` will contain the CID for the file.
+
+### Retry Mechanism
+
+The upload hook includes automatic retry functionality with exponential backoff for failed requests. By default, it will retry up to 3 times for the following HTTP status codes:
+- 408 (Request Timeout)
+- 429 (Too Many Requests)
+- 500 (Internal Server Error)
+- 502 (Bad Gateway)
+- 503 (Service Unavailable)
+- 504 (Gateway Timeout)
+
+Network errors (fetch failures) are also automatically retried. The retry mechanism respects pause/cancel operations and will stop retrying if the upload is cancelled during a retry delay.
+
+You can monitor retry attempts through the `retryCount` state variable, which increments each time a retry is attempted.
 
 Below is a full example of implementing the `useUpload` hook with progress and abilities to pause and resume the upload.
 

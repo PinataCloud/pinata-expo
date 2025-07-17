@@ -12,11 +12,21 @@ import Base64 from "Base64";
 
 const BASE_CHUNK_SIZE = 50 * 1024 * 1024 + 1;
 
+// Default retry configuration
+const DEFAULT_RETRY_OPTIONS = {
+	maxRetries: 3,
+	initialDelay: 1000,
+	maxDelay: 30000,
+	backoffMultiplier: 2,
+	retryableStatuses: [408, 429, 500, 502, 503, 504],
+};
+
 export const useUpload = (): UseUploadReturn => {
 	const [progress, setProgress] = useState<number>(0);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [error, setError] = useState<Error | null>(null);
 	const [uploadResponse, setUploadResponse] = useState<string | null>(null);
+	const [retryCount, setRetryCount] = useState<number>(0);
 
 	// Refs to manage pause/resume/cancel functionality
 	const uploadUrlRef = useRef<string | null>(null);
@@ -36,12 +46,16 @@ export const useUpload = (): UseUploadReturn => {
 	const headerRef = useRef<Record<string, string>>({});
 	const lastResponseHeadersRef = useRef<Headers | null>(null);
 	const chunkSizeRef = useRef<number>(BASE_CHUNK_SIZE);
+	const retryOptionsRef = useRef<typeof DEFAULT_RETRY_OPTIONS>(
+		DEFAULT_RETRY_OPTIONS,
+	);
 
 	// Reset state for new upload
 	const resetState = useCallback(() => {
 		setProgress(0);
 		setError(null);
 		setUploadResponse(null);
+		setRetryCount(0);
 		uploadUrlRef.current = null;
 		pausedRef.current = false;
 		cancelledRef.current = false;
@@ -49,17 +63,60 @@ export const useUpload = (): UseUploadReturn => {
 		fileInfoRef.current = null;
 	}, []);
 
+	// Simple retry helper
+	const fetchWithRetry = useCallback(
+		async (url: string, options: RequestInit): Promise<Response> => {
+			const maxRetries = retryOptionsRef.current.maxRetries;
+			let lastError: any;
+
+			for (let attempt = 0; attempt <= maxRetries; attempt++) {
+				// Check if upload was cancelled before each retry attempt
+				if (cancelledRef.current) {
+					break;
+				}
+
+				try {
+					const response = await fetch(url, options);
+
+					// If successful or non-retryable error, return
+					if (response.ok || attempt === maxRetries) {
+						return response;
+					}
+
+					// Check if status is retryable
+					if (!retryOptionsRef.current.retryableStatuses.includes(response.status)) {
+						return response;
+					}
+
+					lastError = new NetworkError(
+						`HTTP error during retry: ${response.status}`,
+						response.status,
+						{ attempt, maxRetries }
+					);
+				} catch (error) {
+					lastError = error;
+					if (attempt === maxRetries) break;
+				}
+
+				// Wait before retry
+				if (attempt < maxRetries) {
+					const delay = Math.min(
+						retryOptionsRef.current.initialDelay * Math.pow(2, attempt),
+						retryOptionsRef.current.maxDelay,
+					);
+					await new Promise((resolve) => setTimeout(resolve, delay));
+					setRetryCount(attempt + 1);
+				}
+			}
+
+			throw lastError;
+		},
+		[],
+	);
+
 	// Pause upload
 	const pause = useCallback(() => {
 		pausedRef.current = true;
-	}, []);
-
-	// Resume upload
-	const resume = useCallback(() => {
-		if (pausedRef.current && uploadUrlRef.current && fileInfoRef.current) {
-			pausedRef.current = false;
-			continueUpload();
-		}
 	}, []);
 
 	// Cancel upload
@@ -138,8 +195,8 @@ export const useUpload = (): UseUploadReturn => {
 				bytes[i] = binaryString.charCodeAt(i);
 			}
 
-			// Upload chunk
-			const uploadReq = await fetch(uploadUrlRef.current, {
+			// Upload chunk with retry logic
+			const uploadReq = await fetchWithRetry(uploadUrlRef.current, {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/offset+octet-stream",
@@ -187,7 +244,15 @@ export const useUpload = (): UseUploadReturn => {
 			}
 			setLoading(false);
 		}
-	}, [resetState]);
+	}, [resetState, fetchWithRetry]);
+
+	// Resume upload
+	const resume = useCallback(() => {
+		if (pausedRef.current && uploadUrlRef.current && fileInfoRef.current) {
+			pausedRef.current = false;
+			continueUpload();
+		}
+	}, [continueUpload]);
 
 	// Finalize the upload and fetch file info
 	const finalizeUpload = useCallback(async () => {
@@ -240,6 +305,16 @@ export const useUpload = (): UseUploadReturn => {
 					chunkSizeRef.current = options.chunkSize;
 				} else {
 					chunkSizeRef.current = BASE_CHUNK_SIZE;
+				}
+
+				// Set retry options
+				if (options?.retryOptions) {
+					retryOptionsRef.current = {
+						...DEFAULT_RETRY_OPTIONS,
+						...options.retryOptions,
+					};
+				} else {
+					retryOptionsRef.current = DEFAULT_RETRY_OPTIONS;
 				}
 
 				// Get file info from Expo FileSystem
@@ -318,6 +393,16 @@ export const useUpload = (): UseUploadReturn => {
 					chunkSizeRef.current = options.chunkSize;
 				} else {
 					chunkSizeRef.current = BASE_CHUNK_SIZE;
+				}
+
+				// Set retry options
+				if (options?.retryOptions) {
+					retryOptionsRef.current = {
+						...DEFAULT_RETRY_OPTIONS,
+						...options.retryOptions,
+					};
+				} else {
+					retryOptionsRef.current = DEFAULT_RETRY_OPTIONS;
 				}
 
 				// Clean base64 string and get metadata
@@ -402,8 +487,8 @@ export const useUpload = (): UseUploadReturn => {
 				metadata += `,keyvalues ${Base64.btoa(JSON.stringify(options.keyvalues))}`;
 			}
 
-			// Initialize upload with TUS
-			const urlReq = await fetch(url, {
+			// Initialize upload with TUS (with retry logic)
+			const urlReq = await fetchWithRetry(url, {
 				method: "POST",
 				headers: {
 					"Upload-Length": `${fileSize}`,
@@ -443,7 +528,7 @@ export const useUpload = (): UseUploadReturn => {
 			// Start the upload process
 			continueUpload();
 		},
-		[continueUpload],
+		[continueUpload, fetchWithRetry],
 	);
 
 	// Cleanup on unmount
@@ -458,6 +543,7 @@ export const useUpload = (): UseUploadReturn => {
 		loading,
 		error,
 		uploadResponse,
+		retryCount,
 		upload,
 		uploadBase64,
 		pause,

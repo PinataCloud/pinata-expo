@@ -4,6 +4,13 @@ export type UploadOptions = {
 	keyvalues?: Record<string, string>;
 	groupId?: string;
 	chunkSize?: number;
+	retryOptions?: {
+		maxRetries?: number;
+		initialDelay?: number;
+		maxDelay?: number;
+		backoffMultiplier?: number;
+		retryableStatuses?: number[];
+	};
 };
 
 export interface ExtendedUploadOptions extends UploadOptions {
@@ -20,6 +27,7 @@ export type UseUploadReturn = {
 	loading: boolean;
 	error: Error | null;
 	uploadResponse: string | null;
+	retryCount: number;
 	upload: (
 		fileUri: string,
 		network: "public" | "private",
