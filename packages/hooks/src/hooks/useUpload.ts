@@ -487,6 +487,10 @@ export const useUpload = (): UseUploadReturn => {
 				metadata += `,keyvalues ${Base64.btoa(JSON.stringify(options.keyvalues))}`;
 			}
 
+			if (options?.streamVersion) {
+				metadata += `,stream_version ${Base64.btoa(options.streamVersion)}`;
+			}
+
 			// Initialize upload with TUS (with retry logic)
 			const urlReq = await fetchWithRetry(url, {
 				method: "POST",

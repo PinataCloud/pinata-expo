@@ -2,6 +2,7 @@ export type UploadOptions = {
 	customHeaders?: Record<string, string>;
 	name?: string;
 	keyvalues?: Record<string, string>;
+	streamVersion?: number;
 	groupId?: string;
 	chunkSize?: number;
 	retryOptions?: {

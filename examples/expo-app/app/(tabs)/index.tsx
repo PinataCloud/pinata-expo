@@ -80,6 +80,7 @@ export default function HomeScreen() {
 						app: "Pinata Expo Demo",
 						timestamp: Date.now().toString(),
 					},
+					streamVersion: 2
 				},
 			);
 		} catch (err) {
